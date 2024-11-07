@@ -1,6 +1,6 @@
-package org.example;
-
 //class B
+package org.example;
+import java.util.Objects;
 
 public class House implements IProperty, Comparable<House> {
     private Person owner;          // The owner of the house
@@ -16,12 +16,10 @@ public class House implements IProperty, Comparable<House> {
         this.isGround = isGround;
     }
 
-    // Implementation of getDescription method
     @Override
     public String getDescription() {
         return "This house is owned by " + owner.getName() + " and has " + getPetNames() + ".";
     }
-
 
     // Helper method to get pet names as a string
     private String getPetNames() {
@@ -36,10 +34,9 @@ public class House implements IProperty, Comparable<House> {
     }
 
     public Person getOwner() {
-        return owner; // Return the owner of the house
+        return owner;
     }
 
-    // Implementation of getAddress method
     @Override
     public String getAddress() {
         return address;
@@ -57,37 +54,8 @@ public class House implements IProperty, Comparable<House> {
         return isGround ? 0 : -1; // Ground-level house returns 0, others return -1
     }
 
-    // Getter method to return the array of pets
     public Pet[] getPets() {
         return pets;
-    }
-
-    // Method to add a pet to the house
-    public void addPet(Pet pet) {
-        Pet[] newPets = new Pet[pets.length + 1];
-        System.arraycopy(pets, 0, newPets, 0, pets.length);
-        newPets[pets.length] = pet;
-        pets = newPets;
-    }
-
-    // Method to remove a pet from the house
-    public boolean removePet(Pet pet) {
-        boolean found = false;
-        Pet[] newPets = new Pet[pets.length - 1];
-        int index = 0;
-        for (Pet p : pets) {
-            if (!p.equals(pet)) {
-                if (index < newPets.length) {
-                    newPets[index++] = p;
-                }
-            } else {
-                found = true; // Found the pet to remove
-            }
-        }
-        if (found) {
-            pets = newPets; // Update the pets array
-        }
-        return found;
     }
 
     // Override toString for easy printing of house details
@@ -105,4 +73,5 @@ public class House implements IProperty, Comparable<House> {
     public int compareTo(House other) {
         return this.address.compareTo(other.address);
     }
+
 }

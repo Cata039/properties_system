@@ -5,6 +5,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Date;
 
 public class Main {
     // Function to describe the house
@@ -130,7 +133,7 @@ public class Main {
                     sortPropertiesByFloor(properties);
                     System.out.println("Properties sorted by floor:");
                     for (IProperty property : properties) {
-                        System.out.println(property.getDescription() + " on floor " + (property instanceof House ? "ground" : ((Apartment) property).getFloor()));
+                        System.out.println(property.getDescription() + " - floor " + (property instanceof House ? "ground" : ((Apartment) property).getFloor()));
                     }
                     break;
 
@@ -140,7 +143,7 @@ public class Main {
                     for (String owner : ownerGroups.keySet()) {
                         System.out.println("Owner: " + owner);
                         for (IProperty property : ownerGroups.get(owner)) {
-                            System.out.println("  - " + property.getDescription() + " at " + property.getAddress());
+                            System.out.println("  - " + property.getAddress());
                         }
                     }
                     break;
@@ -153,21 +156,57 @@ public class Main {
                     }
                     break;
 
+                case "smallest_adr":
+                    properties.sort(Comparator.comparing(IProperty::getAddress));
+                    IProperty smallestAddressProperty = properties.get(0);
+                    System.out.println("The property with the smallest address is " +smallestAddressProperty.getAddress() + ". "+ smallestAddressProperty.getDescription());
+                    break;
+
+                case "makesound":
+                    // A Set to store unique pet types that have made a sound
+                    Set<String> uniquePetTypes = new HashSet<>();
+
+                    System.out.println("Animals making sounds:");
+                    for (IProperty property : properties) {
+                        Pet[] pets = property instanceof House
+                                ? ((House) property).getPets()
+                                : ((Apartment) property).getPets();
+
+                        for (Pet pet : pets) {
+                            String petType = pet.getPetType().toLowerCase();
+
+                            // Check if this pet type has already made a sound
+                            if (!uniquePetTypes.contains(petType)) {
+                                pet.makeSound(); // Call makeSound for this type only once
+                                uniquePetTypes.add(petType); // Add this pet type to the set
+                            }
+                        }
+                    }
+                    break;
+
+                case "contract":
+                    // Create a sample Lease
+                    Lease lease = new Lease("Alice", new Date(), new Date(System.currentTimeMillis() + (365L * 24 * 60 * 60 * 1000)), 1200.00);
+
+                    // Display Lease details
+                    System.out.println("Lease Details:");
+                    System.out.println("Tenant Name: " + lease.getTenantName());
+                    System.out.println("Start Date: " + lease.getStartDate());
+                    System.out.println("End Date: " + lease.getEndDate());
+                    System.out.println("Monthly Rent: $" + lease.getMonthlyRent());
+
+                    // Demonstrate contract termination
+                    System.out.println("\nTerminating contract...");
+                    lease.terminateContract();
+                    break;
+
                 default:
-                    System.out.println("Invalid command. Please specify 'describe', 'count', 'sort', 'group', or 'countpets' as a command line argument.");
+                    System.out.println("Invalid command. Please specify 'describe', 'count', 'sort', 'group', 'countpets', 'smallestadr, or 'contract' as a command line argument.");
                     break;
             }
         } else {
             System.out.println("Please specify 'describe', 'count', 'sort', 'group', or 'countpets' as a command line argument.");
         }
-
-        // Sort properties by address
-        properties.sort(Comparator.comparing(IProperty::getAddress));
-
-        // Get the property with the smallest address
-        IProperty smallestAddressProperty = properties.get(0);
-        System.out.println("The property with the smallest address is " + smallestAddressProperty.getDescription() + " at " + smallestAddressProperty.getAddress());
-
 
     }
 }

@@ -1,6 +1,7 @@
+// Class A
 package org.example;
+import java.io.Serializable;
 
-// Class A: Represents a person with a name
 class Person {
     String name;
 

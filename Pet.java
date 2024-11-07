@@ -1,21 +1,36 @@
+// Class C
 package org.example;
 
-// Class C: Represents a pet with a type (e.g., dog, cat)
-class Pet {
-    private String petType; // Type of the pet (e.g., Dog, Cat)
+public class Pet implements IAnimal {
+    private String petType;
 
-    // Constructor to initialize the pet type
     public Pet(String petType) {
         this.petType = petType;
     }
 
-    // Getter for the pet type
     public String getPetType() {
         return petType;
     }
 
-    // Method to get pet information
-    public String getPetInfo() {
-        return "Pet is a " + petType; // Returns a general description of the pet
+    @Override
+    public void makeSound() {
+        // Define sounds based on the pet type
+        switch (petType.toLowerCase()) {
+            case "dog":
+                System.out.println("Dog: Woof woof");
+                break;
+            case "fish":
+                // Fish are silent, so we print nothing or a message like "Fish is silent"
+                System.out.println("Fish: silent");
+                break;
+            default:
+                System.out.println(petType + " makes a sound!");
+                break;
+        }
+    }
+
+    @Override
+    public String getInfo() {
+        return "Pet type: " + petType;
     }
 }

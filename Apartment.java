@@ -1,18 +1,18 @@
-package org.example;
-
-import java.io.Serializable;
-
 // Class E
+package org.example;
+import java.io.Serializable;
+import java.util.Objects;
+
 public class Apartment implements IProperty, Comparable<Apartment> {
     private Person owner;      // The owner of the apartment
     private Pet[] pets;        // An array of pets associated with the apartment
     private String address;    // Address of the apartment
-    private int floorNumber;   // Floor number of the apartment
+    private int floor;   // Floor number of the apartment
 
     // Constructor to initialize the owner, floor number, and address
     public Apartment(Person owner, int floorNumber, String address, Pet[] pets) {
         this.owner = owner;
-        this.floorNumber = floorNumber;
+        this.floor = floorNumber;
         this.address = address;
         this.pets = pets != null ? pets : new Pet[0]; // Initialize with provided pets or empty array
     }
@@ -65,12 +65,12 @@ public class Apartment implements IProperty, Comparable<Apartment> {
     // Implementation of getFloor method
     @Override
     public int getFloor() {
-        return floorNumber; // Return the floor number
+        return floor; // Return the floor number
     }
 
     // Implementation of compareTo method to compare based on address
     @Override
     public int compareTo(Apartment other) {
-        return this.address.compareTo(other.address);
+        return Integer.compare(this.floor, other.floor);
     }
 }
