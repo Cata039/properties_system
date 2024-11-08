@@ -1,12 +1,14 @@
 //class D
 package org.example;
 import java.util.Date;
+import java.io.Serializable;
 
-public class Lease implements IContract {
+public class Lease implements IContract, Serializable {
     private String tenantName;
     private Date startDate;
     private Date endDate;
     private double monthlyRent;
+    private boolean isTerminated = false;
 
     public Lease(String tenantName, Date startDate, Date endDate, double monthlyRent) {
         this.tenantName = tenantName;
@@ -31,12 +33,9 @@ public class Lease implements IContract {
         return monthlyRent;
     }
 
-    public void renewLease(Date newEndDate) {
-        this.endDate = newEndDate;
-    }
-
     @Override
     public void terminateContract() {
+        this.isTerminated = true;  // Mark as terminated
         System.out.println("Terminating lease for tenant: " + tenantName);
     }
 
