@@ -391,17 +391,14 @@ public class Main {
             for (int i = 0; i < leaseArray.length(); i++) {
                 JSONObject leaseObject = leaseArray.getJSONObject(i);
 
-                // Check for required fields and handle missing data
+                // Extract fields with default values if missing
                 String tenant = leaseObject.optString("tenant", "Unknown Tenant");
                 Date startDate = dateFormat.parse(leaseObject.optString("startDate", "1900-01-01"));
                 Date endDate = dateFormat.parse(leaseObject.optString("endDate", "1900-01-01"));
                 double monthlyRent = leaseObject.optDouble("monthlyRent", 0.0);
+                String propertyAddress = leaseObject.optString("propertyAddress", "Unknown Address"); // Extract property address
 
-                if (!leaseObject.has("propertyAddress")) {
-                    continue;
-                }
-                String propertyAddress = leaseObject.getString("propertyAddress");
-
+                // Pass all five arguments to the Lease constructor
                 leases.add(new Lease(tenant, startDate, endDate, monthlyRent, propertyAddress));
             }
         } catch (IOException | ParseException e) {
@@ -409,6 +406,7 @@ public class Main {
         }
         return leases;
     }
+
 
 
 
