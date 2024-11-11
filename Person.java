@@ -2,7 +2,7 @@
 package org.example;
 import java.io.Serializable;
 
-class Person {
+class Person implements Serializable {
     String name;
 
     // Constructor to initialize the name

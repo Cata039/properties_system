@@ -1,0 +1,78 @@
+{
+    "persons": [
+        {"name": "Alice"},
+        {"name": "Bob"},
+        {"name": "Dana"},
+        {"name": "Mihaela"}
+    ],
+    "leases": [
+        {
+            "propertyAddress": "123 Main St",
+            "endDate": "2024-11-07",
+            "monthlyRent": 1200,
+            "tenant": "Alice",
+            "startDate": "2023-11-08"
+        },
+        {
+            "propertyAddress": "789 High St",
+            "endDate": "2024-09-09",
+            "monthlyRent": 230,
+            "tenant": "Mihaela",
+            "startDate": "2023-09-09"
+        },
+        {
+            "propertyAddress": "456 Oak St",
+            "endDate": "2024-09-09",
+            "monthlyRent": 300,
+            "tenant": "Bob",
+            "startDate": "2019-09-09"
+        }
+    ],
+    "properties": [
+        {
+            "owner": "Alice",
+            "pets": [
+                {"type": "Dog"},
+                {"type": "Dog"},
+                {"type": "Fish"}
+            ],
+            "address": "123 Main St",
+            "type": "House",
+            "occupied": true
+        },
+        {
+            "owner": "Alice",
+            "pets": [{"type": "Fish"}],
+            "address": "789 High St",
+            "type": "Apartment",
+            "floor": 6
+        },
+        {
+            "owner": "Bob",
+            "pets": [
+                {"type": "Dog"},
+                {"type": "Fish"}
+            ],
+            "address": "456 Oak St",
+            "type": "Apartment",
+            "floor": 5
+        },
+        {
+            "owner": "Mihaela",
+            "pets": [{"type": "Cat"}],
+            "address": "34 Vila St",
+            "type": "House",
+            "occupied": true
+        },
+        {
+            "owner": "Dana",
+            "pets": [
+                {"type": "Cat"},
+                {"type": "Cat"}
+            ],
+            "address": "45 Delia St",
+            "type": "Apartment",
+            "floor": 2
+        }
+    ]
+}
