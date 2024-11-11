@@ -3,25 +3,23 @@
         {"name": "Alice"},
         {"name": "Bob"},
         {"name": "Dana"},
-        {"name": "Mihaela"}
+        {"name": "Mihaela"},
+        {"name": "Alicia"}
     ],
     "leases": [
         {
-            "propertyAddress": "123 Main St",
             "endDate": "2024-11-07",
             "monthlyRent": 1200,
             "tenant": "Alice",
             "startDate": "2023-11-08"
         },
         {
-            "propertyAddress": "789 High St",
             "endDate": "2024-09-09",
             "monthlyRent": 230,
             "tenant": "Mihaela",
             "startDate": "2023-09-09"
         },
         {
-            "propertyAddress": "456 Oak St",
             "endDate": "2024-09-09",
             "monthlyRent": 300,
             "tenant": "Bob",
@@ -36,14 +34,14 @@
                 {"type": "Dog"},
                 {"type": "Fish"}
             ],
-            "address": "123 Main St",
+            "address": "123 Main",
             "type": "House",
             "occupied": true
         },
         {
             "owner": "Alice",
             "pets": [{"type": "Fish"}],
-            "address": "789 High St",
+            "address": "789 High",
             "type": "Apartment",
             "floor": 6
         },
@@ -53,14 +51,14 @@
                 {"type": "Dog"},
                 {"type": "Fish"}
             ],
-            "address": "456 Oak St",
+            "address": "456 Oak",
             "type": "Apartment",
             "floor": 5
         },
         {
             "owner": "Mihaela",
             "pets": [{"type": "Cat"}],
-            "address": "34 Vila St",
+            "address": "34 Vila",
             "type": "House",
             "occupied": true
         },
@@ -70,9 +68,16 @@
                 {"type": "Cat"},
                 {"type": "Cat"}
             ],
-            "address": "45 Delia St",
+            "address": "45 Delia",
             "type": "Apartment",
             "floor": 2
+        },
+        {
+            "owner": "Alicia",
+            "pets": [],
+            "address": "123 Maria",
+            "type": "House",
+            "occupied": false
         }
     ]
 }

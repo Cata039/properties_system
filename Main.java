@@ -1,5 +1,6 @@
 package org.example;
 
+import java.io.FileNotFoundException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.nio.file.Files;
@@ -73,6 +74,14 @@ public class Main {
         }
         return petCount;
     }
+
+    public static void validateAddress(String address) throws InvalidAddressFormatException {
+        String addressPattern = "^\\d+\\s+[A-Za-z]+$";
+        if (!address.matches(addressPattern)) {
+            throw new InvalidAddressFormatException("Invalid address format. Please enter the address in the format '123 Abc'.");
+        }
+    }
+
 
     private static final String DATA_FILE = "data.json";
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -223,10 +232,19 @@ public class Main {
                                         .orElse(new Person(ownerName));
                                 if (!persons.contains(owner)) persons.add(owner);
 
-                                System.out.println("Enter property address:");
-                                String address = scanner.nextLine();
+                                String address;
+                                while (true) {
+                                    System.out.println("Enter property address in the format '123 Abc':");
+                                    address = scanner.nextLine();
+                                    try {
+                                        validateAddress(address); // Validate address format
+                                        break; // Exit loop if address is valid
+                                    } catch (InvalidAddressFormatException e) {
+                                        System.out.println(e.getMessage()); // Display custom error message
+                                    }
+                                }
 
-                                System.out.println("Enter number of pets:");
+                                    System.out.println("Enter number of pets:");
                                 int petCount = Integer.parseInt(scanner.nextLine());
                                 Pet[] pets = new Pet[petCount];
                                 for (int i = 0; i < petCount; i++) {
@@ -241,14 +259,17 @@ public class Main {
                                     properties.add(new House(owner, pets, address, isGround));
                                 } else if (propertyType.equals("apartment")) {
                                     System.out.println("Enter floor number:");
-                                    int floor = Integer.parseInt(scanner.nextLine());
-                                    properties.add(new Apartment(owner, floor, address, pets));
+                                    int floor;
+                                    try {
+                                        floor = Integer.parseInt(scanner.nextLine());
+                                        properties.add(new Apartment(owner, floor, address, pets));
+                                    } catch (NumberFormatException e) {
+                                        System.out.println("Invalid floor number. Please enter an integer.");
+                                        break;
+                                    }
                                 }
-                                saveToJson(persons, properties, leases);
-                                System.out.println("Property added.");
-                                break;
 
-                            case "lease":
+                                case "lease":
                                 System.out.println("Enter tenant name:");
                                 String leaseTenantName = scanner.nextLine();
 
@@ -369,19 +390,26 @@ public class Main {
 
             for (int i = 0; i < leaseArray.length(); i++) {
                 JSONObject leaseObject = leaseArray.getJSONObject(i);
-                leases.add(new Lease(
-                        leaseObject.getString("tenant"),
-                        dateFormat.parse(leaseObject.getString("startDate")),
-                        dateFormat.parse(leaseObject.getString("endDate")),
-                        leaseObject.getDouble("monthlyRent"),
-                        leaseObject.getString("propertyAddress")
-                ));
+
+                // Check for required fields and handle missing data
+                String tenant = leaseObject.optString("tenant", "Unknown Tenant");
+                Date startDate = dateFormat.parse(leaseObject.optString("startDate", "1900-01-01"));
+                Date endDate = dateFormat.parse(leaseObject.optString("endDate", "1900-01-01"));
+                double monthlyRent = leaseObject.optDouble("monthlyRent", 0.0);
+
+                if (!leaseObject.has("propertyAddress")) {
+                    continue;
+                }
+                String propertyAddress = leaseObject.getString("propertyAddress");
+
+                leases.add(new Lease(tenant, startDate, endDate, monthlyRent, propertyAddress));
             }
         } catch (IOException | ParseException e) {
             e.printStackTrace();
         }
         return leases;
     }
+
 
 
     // Method to save the updated data back to the JSON file
