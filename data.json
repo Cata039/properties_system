@@ -1,0 +1,118 @@
+{
+    "persons": [
+        {"name": "Alice"},
+        {"name": "Bob"},
+        {"name": "Dana"},
+        {"name": "Mihaela"},
+        {"name": "Alicia"},
+        {"name": "Maria"},
+        {"name": "Dorina"},
+        {"name": "Doru"}
+    ],
+    "leases": [
+        {
+            "endDate": "2024-11-07",
+            "monthlyRent": 1200,
+            "tenant": "Alice",
+            "startDate": "2023-11-08"
+        },
+        {
+            "endDate": "2024-09-09",
+            "monthlyRent": 230,
+            "tenant": "Mihaela",
+            "startDate": "2023-09-09"
+        },
+        {
+            "endDate": "2024-09-09",
+            "monthlyRent": 300,
+            "tenant": "Bob",
+            "startDate": "2019-09-09"
+        },
+        {
+            "endDate": "0012-02-29",
+            "monthlyRent": 500,
+            "tenant": "Alicia",
+            "startDate": "0092-06-06"
+        },
+        {
+            "endDate": "2024-09-09",
+            "monthlyRent": 500,
+            "tenant": "Dorina",
+            "startDate": "2022-03-03"
+        },
+        {
+            "endDate": "2024-03-03",
+            "monthlyRent": 200,
+            "tenant": "Doru",
+            "startDate": "2023-03-03"
+        }
+    ],
+    "properties": [
+        {
+            "owner": "Alice",
+            "pets": [
+                {"type": "Dog"},
+                {"type": "Dog"},
+                {"type": "Fish"}
+            ],
+            "address": "123 Main",
+            "type": "House",
+            "occupied": true
+        },
+        {
+            "owner": "Alice",
+            "pets": [{"type": "Fish"}],
+            "address": "789 High",
+            "type": "Apartment",
+            "floor": 6
+        },
+        {
+            "owner": "Bob",
+            "pets": [
+                {"type": "Dog"},
+                {"type": "Fish"}
+            ],
+            "address": "456 Oak",
+            "type": "Apartment",
+            "floor": 5
+        },
+        {
+            "owner": "Mihaela",
+            "pets": [{"type": "Cat"}],
+            "address": "34 Vila",
+            "type": "House",
+            "occupied": true
+        },
+        {
+            "owner": "Dana",
+            "pets": [
+                {"type": "Cat"},
+                {"type": "Cat"}
+            ],
+            "address": "45 Delia",
+            "type": "Apartment",
+            "floor": 2
+        },
+        {
+            "owner": "Alicia",
+            "pets": [],
+            "address": "123 Maria",
+            "type": "House",
+            "occupied": false
+        },
+        {
+            "owner": "Dorina",
+            "pets": [{"type": "Guinea pig"}],
+            "address": "22 Anabi",
+            "type": "Apartment",
+            "floor": 3
+        },
+        {
+            "owner": "Doru",
+            "pets": [],
+            "address": "22 Anabi",
+            "type": "Apartment",
+            "floor": 3
+        }
+    ]
+}
