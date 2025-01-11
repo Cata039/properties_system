@@ -9,7 +9,7 @@ public class Lease implements IContract, Serializable {
     private Date endDate;
     private double monthlyRent;
     private String propertyAddress;
-    private boolean isTerminated = false;
+    private boolean isTerminated = true;
 
 
     public Lease(String tenantName, Date startDate, Date endDate, double monthlyRent, String propertyAddress) {
@@ -40,6 +40,10 @@ public class Lease implements IContract, Serializable {
         return propertyAddress;
     }
 
+    public boolean isTerminated() {
+        return isTerminated;
+    }
+
     @Override
     public void terminateContract() {
         this.isTerminated = true;  // Mark as terminated
@@ -53,6 +57,8 @@ public class Lease implements IContract, Serializable {
                 ", startDate=" + startDate +
                 ", endDate=" + endDate +
                 ", monthlyRent=" + monthlyRent +
+                ", isTerminated=" + isTerminated +
                 '}';
     }
+
 }

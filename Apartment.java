@@ -21,8 +21,9 @@ public class Apartment implements IProperty, Comparable<Apartment>, Serializable
 
     // Method to get the array of pets
     public Pet[] getPets() {
-        return pets;
+        return this.pets;  // Assuming `pets` is a field in the `Apartment` class
     }
+
 
     // Method to count the number of pets in the apartment
     public int countPets() {

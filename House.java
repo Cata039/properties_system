@@ -82,7 +82,7 @@ public class House implements IProperty, Comparable<House>, Serializable {
     }
 
     public Pet[] getPets() {
-        return pets;
+        return this.pets;  // Return the pets array
     }
 
     // Override toString for easy printing of house details

@@ -1,133 +1,156 @@
 package org.example;
 
-import java.io.FileNotFoundException;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.io.IOException;
+import java.util.concurrent.*;
 import java.util.*;
-import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.io.FileWriter;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 
 public class Main {
-    // Function to describe the house
-    public static void describeHouse(House house) {
-        System.out.println(house.getDescription());
-    }
+    // Thread pool for parallel tasks
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(8);
 
-    // Function to count the number of pets
-    public static int countPets(IProperty property) {
-        if (property instanceof House) {
-            return ((House) property).getPets().length; // Cast to House and count pets
-        } else if (property instanceof Apartment) {
-            return ((Apartment) property).countPets(); // Call countPets on Apartment
-        }
-        return 0; // If neither, return 0
-    }
-
-    // Function to sort properties by floor
-    public static List<IProperty> sortPropertiesByFloor(List<IProperty> properties) {
-        properties.sort((p1, p2) -> {
-            if (p1 instanceof House && p2 instanceof House) {
-                return 0; // Both are Houses, considered equal
-            } else if (p1 instanceof House) {
-                return -1; // House comes first
-            } else if (p2 instanceof House) {
-                return 1; // House comes last
-            } else {
-                // Both are Apartments, use compareTo method
-                Apartment apartment1 = (Apartment) p1;
-                Apartment apartment2 = (Apartment) p2;
-                return apartment1.compareTo(apartment2);
+    // Parallelized pet counting function
+    public static Future<Integer> countPetsAsync(IProperty property) {
+        return executorService.submit(() -> {
+            System.out.println(Thread.currentThread().getName() + " is processing " + property.getAddress());
+            if (property instanceof House) {
+                return ((House) property).getPets().length;
+            } else if (property instanceof Apartment) {
+                return ((Apartment) property).countPets();
             }
+            return 0;
         });
-        return properties;
     }
 
-    // Function to group properties by owner
-    public static Map<String, List<IProperty>> groupPropertiesByOwner(List<IProperty> properties) {
-        Map<String, List<IProperty>> ownerGroups = new HashMap<>();
-
-        for (IProperty property : properties) {
-            String ownerName = property instanceof House
-                    ? ((House) property).getOwner().getName()
-                    : ((Apartment) property).getOwner().getName();
-
-            // Group properties by owner name
-            ownerGroups.computeIfAbsent(ownerName, k -> new ArrayList<>()).add(property);
-        }
-
-        // Now, sort the properties for each owner
-        for (Map.Entry<String, List<IProperty>> entry : ownerGroups.entrySet()) {
-            List<IProperty> propertiesForOwner = entry.getValue();
-
-            // Sort the properties within each owner's list
-            propertiesForOwner.sort((p1, p2) -> {
-                if (p1 instanceof House && p2 instanceof House) {
-                    // Use the compareTo method of House to compare by address
-                    return ((House) p1).compareTo((House) p2);
-                }
-                // Default comparison for Apartment (optional, based on other criteria)
-                else if (p1 instanceof Apartment && p2 instanceof Apartment) {
-                    return ((Apartment) p1).compareTo((Apartment) p2);
-                }
-                return 0; // No sorting needed for mixed types or when one of the properties is not comparable
+    // Parallelized sorting function
+    public static Future<List<IProperty>> sortPropertiesByFloorAsync(List<IProperty> properties) {
+        return executorService.submit(() -> {
+            properties.sort((p1, p2) -> {
+                if (p1 instanceof House && p2 instanceof House) return 0;
+                if (p1 instanceof House) return -1;
+                if (p2 instanceof House) return 1;
+                return Integer.compare(((Apartment) p1).getFloor(), ((Apartment) p2).getFloor());
             });
+            return properties;
+        });
+    }
+
+    //parallelized function
+    public static Map<String, List<IProperty>> groupPropertiesByOwner(List<IProperty> properties) {
+        Map<String, List<IProperty>> ownerGroups = new ConcurrentHashMap<>();  // Concurrent for thread safety
+
+        try {
+            // Submit tasks to group properties by owner
+            List<Future<?>> futures = new ArrayList<>();
+            for (IProperty property : properties) {
+                Future<?> future = executorService.submit(() -> {
+                    String ownerName = property instanceof House
+                            ? ((House) property).getOwner().getName()
+                            : ((Apartment) property).getOwner().getName();
+
+                    // Log the processing
+                    System.out.println(Thread.currentThread().getName() + " is processing " + property.getAddress());
+
+                    // Add to the group
+                    ownerGroups.computeIfAbsent(ownerName, k -> new ArrayList<>()).add(property);
+                });
+                futures.add(future);
+            }
+
+            // Ensure all grouping tasks complete
+            for (Future<?> future : futures) {
+                future.get();  // Wait for each task to finish
+            }
+
+            // Sort properties for each owner in parallel
+            List<Future<?>> sortFutures = new ArrayList<>();
+            for (Map.Entry<String, List<IProperty>> entry : ownerGroups.entrySet()) {
+                Future<?> sortFuture = executorService.submit(() -> {
+                    List<IProperty> propertiesForOwner = entry.getValue();
+                    propertiesForOwner.sort((p1, p2) -> {
+                        if (p1 instanceof House && p2 instanceof House) {
+                            return ((House) p1).compareTo((House) p2);  // Sort by address for houses
+                        } else if (p1 instanceof Apartment && p2 instanceof Apartment) {
+                            return ((Apartment) p1).compareTo((Apartment) p2);  // Sort apartments
+                        }
+                        return 0;  // No sorting needed for mixed types
+                    });
+                });
+                sortFutures.add(sortFuture);
+            }
+
+            // Ensure all sorting tasks complete
+            for (Future<?> sortFuture : sortFutures) {
+                sortFuture.get();  // Wait for sorting to finish
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        } finally {
+            executorService.shutdown();  // Shutdown thread pool
         }
 
         return ownerGroups;
     }
 
-    // Function to count pets by type
-    public static Map<String, Integer> countPetsByType(List<IProperty> properties) {
-        Map<String, Integer> petCount = new HashMap<>();
-        for (IProperty property : properties) {
-            Pet[] pets = property instanceof House
-                    ? ((House) property).getPets()
-                    : ((Apartment) property).getPets();
 
-            for (Pet pet : pets) {
-                String petType = pet.getPetType();
-                petCount.put(petType, petCount.getOrDefault(petType, 0) + 1);
+    //parallelized Function to count pets by type
+    public static Future<Map<String, Integer>> countPetsByTypeAsync(List<IProperty> properties) {
+        return executorService.submit(() -> {
+            Map<String, Integer> petCount = new ConcurrentHashMap<>();
+            List<Future<?>> futures = new ArrayList<>();
+
+            for (IProperty property : properties) {
+                futures.add(executorService.submit(() -> {
+                    Pet[] pets = property instanceof House
+                            ? ((House) property).getPets()
+                            : ((Apartment) property).getPets();
+
+                    for (Pet pet : pets) {
+                        String petType = pet.getPetType();
+                        petCount.merge(petType, 1, Integer::sum);  // Thread-safe increment
+                    }
+                }));
             }
-        }
-        return petCount;
+
+            for (Future<?> future : futures) {
+                future.get();  // Wait for all threads to finish
+            }
+
+            return petCount;
+        });
     }
 
-    // Function to group properties by pet type
-    public static Map<String, List<IProperty>> groupPropertiesByPetType(List<IProperty> properties) {
-        // Create a map to group properties by pet type
-        Map<String, List<IProperty>> petTypeGroups = new HashMap<>();
 
-        for (IProperty property : properties) {
-            // Determine the pets for this property (based on the property type)
-            Pet[] pets = null;
+    //Parallelized Function to group properties by pet type
+    public static Future<Map<String, List<IProperty>>> groupPropertiesByPetTypeAsync(List<IProperty> properties) {
+        return executorService.submit(() -> {
+            Map<String, List<IProperty>> petTypeGroups = new ConcurrentHashMap<>();
+            List<Future<?>> futures = new ArrayList<>();
 
-            // Check if it's a House or Apartment and retrieve pets accordingly
-            if (property instanceof House) {
-                pets = ((House) property).getPets();
-            } else if (property instanceof Apartment) {
-                pets = ((Apartment) property).getPets();
+            for (IProperty property : properties) {
+                futures.add(executorService.submit(() -> {
+                    Pet[] pets = property instanceof House
+                            ? ((House) property).getPets()
+                            : ((Apartment) property).getPets();
+
+                    for (Pet pet : pets) {
+                        String petType = pet.getPetType();
+                        petTypeGroups.computeIfAbsent(petType, k -> Collections.synchronizedList(new ArrayList<>())).add(property);
+                    }
+                }));
             }
 
-            // If pets are found, group properties by pet type
-            if (pets != null) {
-                for (Pet pet : pets) {
-                    // Get the pet type
-                    String petType = pet.getPetType();
-
-                    // Add property to the corresponding pet type group
-                    petTypeGroups.computeIfAbsent(petType, k -> new ArrayList<>()).add(property);
-                }
+            for (Future<?> future : futures) {
+                future.get();  // Wait for all tasks to complete
             }
-        }
 
-        return petTypeGroups;
+            return petTypeGroups;
+        });
     }
 
     public static void validateAddress(String address) throws InvalidAddressFormatException {
@@ -148,19 +171,33 @@ public class Main {
         }
     }
 
+    public static void terminateLease(String propertyAddress) {
+        String query = "DELETE FROM Lease WHERE property_id = (SELECT id FROM Property WHERE address = ?)";
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, propertyAddress);
+            int rowsDeleted = stmt.executeUpdate();
+            if (rowsDeleted > 0) {
+                System.out.println("Lease for property " + propertyAddress + " terminated.");
+            } else {
+                System.out.println("No lease found for the provided property address.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 
-    private static final String DATA_FILE = "data.json";
+    //    private static final ExecutorService executorService = Executors.newFixedThreadPool(8);
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    List<Lease> leases = loadLeasesFromJson(DATA_FILE);
 
     public static void main(String[] args) {
-        // Load initial data from JSON files
-        List<Person> persons = loadPersonsFromJson(DATA_FILE);
-        List<IProperty> properties = loadPropertiesFromJson(DATA_FILE);
-        List<Lease> leases = loadLeasesFromJson(DATA_FILE);
+        try {
+            List<Person> persons = getAllPersons();  // Fetch persons from the database
+            List<IProperty> properties = getAllProperties();  // Fetch properties from the database
+            List<Lease> leases = getAllLeases();  // Fetch leases from the database
 
-        Scanner scanner = new Scanner(System.in);
+            Scanner scanner = new Scanner(System.in);
         if (args.length > 0) {
             String command = args[0].toLowerCase();
 
@@ -174,14 +211,33 @@ public class Main {
                     System.out.println("Number of pets:");
                     for (IProperty property : properties) {
                         String address = property.getAddress();
-                        int numberOfPets = countPets(property);
-                        System.out.println(address + ": " + numberOfPets);
+                        try {
+                            // Call .get() on the Future to retrieve the integer result
+                            int numberOfPets = countPetsAsync(property).get();
+                            System.out.println(address + ": " + numberOfPets);
+                        } catch (InterruptedException | ExecutionException e) {
+                            e.printStackTrace();
+                        }
                     }
                     break;
+
                 case "sort":
-                    sortPropertiesByFloor(properties);
+                    System.out.println("Starting sorting...");
+
+                    // Measure start time
+                    long startTime = System.currentTimeMillis();
+
+                    // Call asynchronous sorting method
+                    Future<List<IProperty>> sortedFuture = sortPropertiesByFloorAsync(properties);
+                    List<IProperty> sortedProperties = sortedFuture.get();  // Wait for result
+
+                    // Measure end time
+                    long endTime = System.currentTimeMillis();
+                    System.out.println("Time taken for sorting: " + (endTime - startTime) + " ms");
+
+                    // Display sorted properties
                     System.out.println("Properties sorted by floor:");
-                    for (IProperty property : properties) {
+                    for (IProperty property : sortedProperties) {
                         String address = property.getAddress();
                         String owner = property instanceof House ? ((House) property).getOwner().getName() : ((Apartment) property).getOwner().getName();
                         String floorDescription = property instanceof House ? "ground" : String.valueOf(((Apartment) property).getFloor());
@@ -190,6 +246,7 @@ public class Main {
                         System.out.println(typeDescription + address + " owned by " + owner + " - floor " + floorDescription);
                     }
                     break;
+
                 case "group":
                     Map<String, List<IProperty>> ownerGroups = groupPropertiesByOwner(properties);
                     System.out.println("Properties grouped by owner:");
@@ -201,23 +258,19 @@ public class Main {
                     }
                     break;
                 case "countpets":
-                    Map<String, Integer> petCounts = countPetsByType(properties);
-                    System.out.println("Pet count by type:");
+                    System.out.println("Counting pets by type asynchronously...");
+                    Future<Map<String, Integer>> petCountsFuture = countPetsByTypeAsync(properties);
+                    Map<String, Integer> petCounts = petCountsFuture.get();  // Wait for the result
                     for (String petType : petCounts.keySet()) {
                         System.out.println(petType + ": " + petCounts.get(petType));
                     }
                     break;
                 case "group_by_pet":
-                    // Group properties by pet type
-                    Map<String, List<IProperty>> petGroups = groupPropertiesByPetType(properties);
-
-                    System.out.println("Properties grouped by pet type:");
-
-                    // Iterate through the pet groups and print out the properties for each pet type
+                    System.out.println("Grouping properties by pet type asynchronously...");
+                    Future<Map<String, List<IProperty>>> petGroupsFuture = groupPropertiesByPetTypeAsync(properties);
+                    Map<String, List<IProperty>> petGroups = petGroupsFuture.get();  // Wait for the result
                     for (String petType : petGroups.keySet()) {
                         System.out.println(petType + ":");
-
-                        // For each pet type, print the properties that have this pet type
                         for (IProperty property : petGroups.get(petType)) {
                             System.out.println(" - " + property.getAddress());
                         }
@@ -256,21 +309,29 @@ public class Main {
                     }
                     break;
                 case "contract":
-                    if (leases.isEmpty()) {
+                    List<Lease> currentLeases = getAllLeases();  // Fetch leases from the database
+                    if (currentLeases.isEmpty()) {
                         System.out.println("No leases available to display or terminate.");
                         break;
                     }
 
                     System.out.println("Lease Details:");
-                    for (Lease lease : leases) {
+                    for (Lease lease : currentLeases) {
                         System.out.println("Tenant Name: " + lease.getTenantName());
                         System.out.println("Start Date: " + lease.getStartDate());
                         System.out.println("End Date: " + lease.getEndDate());
                         System.out.println("Monthly Rent: $" + lease.getMonthlyRent());
                         System.out.println();
-
                     }
-                    saveToJson(persons, properties, leases);
+
+                    // Optionally add a prompt for termination or updates:
+                    System.out.println("Do you want to terminate a lease? (yes/no)");
+                    String response = scanner.nextLine().trim().toLowerCase();
+                    if (response.equals("yes")) {
+                        System.out.println("Enter property address for lease termination:");
+                        String propertyAddress = scanner.nextLine();
+                        terminateLease(propertyAddress);  // Function to terminate the lease in the database
+                    }
                     break;
 
                 case "add":
@@ -288,7 +349,6 @@ public class Main {
                                 System.out.println("Enter property type (house/apartment):");
                                 String propertyType = scanner.nextLine().toLowerCase();
 
-                                // Validate property type input to be either house or apartment
                                 while (!propertyType.equals("house") && !propertyType.equals("apartment")) {
                                     System.out.println("Invalid property type. Please enter 'house' or 'apartment':");
                                     propertyType = scanner.nextLine().toLowerCase();
@@ -297,168 +357,116 @@ public class Main {
                                 System.out.println("Enter owner name:");
                                 String ownerName = scanner.nextLine();
 
-                                // Reuse or add the owner as a person
+                                // Check if person exists or add them to the database
                                 Person owner = persons.stream().filter(p -> p.getName().equalsIgnoreCase(ownerName))
                                         .findFirst()
                                         .orElseGet(() -> {
                                             Person newPerson = new Person(ownerName);
-                                            persons.add(newPerson); // Add the new owner to persons
+                                            addPersonToDatabase(newPerson);  // Add new person to the database
+                                            persons.add(newPerson);  // Keep local list updated
                                             return newPerson;
                                         });
 
-                                // Validate address format
+                                // Validate property address format
                                 String address;
                                 while (true) {
-                                    System.out.println("Enter property address in the format '123 Abc':");
+                                    System.out.println("Enter property address (format '123 Abc'):");
                                     address = scanner.nextLine();
                                     try {
-                                        validateAddress(address); // Validate address format
-                                        break; // Exit loop if address is valid
+                                        validateAddress(address);
+                                        break;  // Exit loop if address is valid
                                     } catch (InvalidAddressFormatException e) {
-                                        System.out.println(e.getMessage()); // Display custom error message
+                                        System.out.println(e.getMessage());  // Display validation error
                                     }
                                 }
 
-                                // Validate pet count to ensure it's a valid number
-                                int petCount = 0;
-                                while (true) {
-                                    System.out.println("Enter number of pets:");
-                                    try {
-                                        petCount = Integer.parseInt(scanner.nextLine());
-                                        if (petCount < 0) {
-                                            System.out.println("Please enter a valid number greater than or equal to 0.");
-                                            continue;
-                                        }
-                                        break; // Exit loop if petCount is valid
-                                    } catch (NumberFormatException e) {
-                                        System.out.println("Invalid input. Please enter a number.");
-                                    }
-                                }
-
+                                System.out.println("Enter number of pets:");
+                                int petCount = Integer.parseInt(scanner.nextLine());
                                 Pet[] pets = new Pet[petCount];
                                 for (int i = 0; i < petCount; i++) {
                                     System.out.println("Enter pet type for pet " + (i + 1) + ":");
-                                    String petType = scanner.nextLine();
-                                    pets[i] = new Pet(petType);
+                                    pets[i] = new Pet(scanner.nextLine());
                                 }
 
                                 if (propertyType.equals("house")) {
-                                    // Automatically set the ground level to true for houses
-                                    boolean isGround = true; // Ground level is always true for houses
-                                    properties.add(new House(owner, pets, address, isGround));
-                                } else if (propertyType.equals("apartment")) {
-                                    // Validate the floor number between 0 and 130
-                                    int floor = -1;
-                                    while (floor < 0 || floor > 130) {
-                                        System.out.println("Enter floor number (0-130):");
-                                        try {
-                                            floor = Integer.parseInt(scanner.nextLine());
-                                            if (floor < 0 || floor > 130) {
-                                                System.out.println("Please enter a floor number between 0 and 130.");
-                                            }
-                                        } catch (NumberFormatException e) {
-                                            System.out.println("Invalid input. Please enter a valid floor number.");
-                                        }
-                                    }
-                                    properties.add(new Apartment(owner, floor, address, pets));
+                                    House house = new House(owner, pets, address, true);  // Ground level is always true for houses
+                                    addPropertyToDatabase(house);  // Save house to the database
+                                    System.out.println("House added.");
+                                } else {
+                                    System.out.println("Enter floor number (0-130):");
+                                    int floor = Integer.parseInt(scanner.nextLine());
+                                    Apartment apartment = new Apartment(owner, floor, address, pets);
+                                    addPropertyToDatabase(apartment);  // Save apartment to the database
+                                    System.out.println("Apartment added.");
                                 }
                                 break;
 
-                                case "lease":
+                            case "lease":
                                 System.out.println("Enter tenant name:");
                                 String leaseTenantName = scanner.nextLine();
 
-                                    // Check if tenant exists in the persons list
-                                    Person tenant = persons.stream()
-                                            .filter(p -> p.getName().equalsIgnoreCase(leaseTenantName))
-                                            .findFirst()
-                                            .orElse(null); // If tenant doesn't exist, this will return null
+                                Person tenant = persons.stream()
+                                        .filter(p -> p.getName().equalsIgnoreCase(leaseTenantName))
+                                        .findFirst()
+                                        .orElse(null);
 
-                                    if (tenant == null) {
-                                        System.out.println("Tenant does not exist. Please use the 'property' command first to register the tenant.");
-                                        break;  // Exit the lease case and return to the main loop
-                                    }
+                                if (tenant == null) {
+                                    System.out.println("Tenant does not exist. Please use the 'property' command first to register the tenant.");
+                                    break;
+                                }
 
-                                    // Check if the tenant has a property assigned to them
-                                    boolean tenantHasProperty = properties.stream()
-                                            .anyMatch(p -> p.getOwner().getName().equalsIgnoreCase(tenant.getName())); // Compare the tenant's name with the owner's name
+                                System.out.println("Enter property address:");
+                                String propertyAddress = scanner.nextLine();
 
-                                    if (!tenantHasProperty) {
-                                        System.out.println("Tenant does not own any property. Please assign a property to the tenant first.");
-                                        break; // Exit the lease case if the tenant has no property
-                                    }
+                                boolean propertyExists = properties.stream()
+                                        .anyMatch(p -> p.getAddress().equalsIgnoreCase(propertyAddress));
 
-                                    System.out.println("Enter property address:");
-                                    String propertyAddress = scanner.nextLine();
+                                if (!propertyExists) {
+                                    System.out.println("Property not found. Please add it first.");
+                                    break;
+                                }
 
-                                    // If the property does not exist in the system, throw PropertyNotFoundException
-                                    boolean propertyExists = properties.stream()
-                                            .anyMatch(p -> p.getAddress().equalsIgnoreCase(propertyAddress));  // Case insensitive comparison
+                                System.out.println("Enter monthly rent:");
+                                double monthlyRent = Double.parseDouble(scanner.nextLine());
 
-                                    if (!propertyExists) {
-                                        // Property does not exist
-                                        try {
-                                            throw new PropertyNotFoundException(propertyAddress);  // Throw the custom exception
-                                        } catch (PropertyNotFoundException e) {
-                                            System.out.println(e.getMessage());  // Display the message from the exception
-                                            break;  // Exit the lease case
-                                        }
-                                    }
-
-                                    System.out.println("Enter monthly rent:");
-                                    double monthlyRent = Double.parseDouble(scanner.nextLine());
-
-                                    Date leaseStartDate = null;
-                                    Date leaseEndDate = null;
-
-                                    // Loop to ensure valid lease start date input
-                                    while (leaseStartDate == null) {
-                                        try {
-                                            System.out.println("Enter lease start date (yyyy-MM-dd):");
-                                            leaseStartDate = validateAndParseDate(scanner.nextLine());  // Try to parse the date
-                                        } catch (ParseException e) {
-                                            System.out.println("Invalid date format. Please enter dates in yyyy-MM-dd format.");
-                                        }
-                                    }
-
-                                    // Loop to ensure valid lease end date input
-                                    while (leaseEndDate == null) {
-                                        try {
-                                            System.out.println("Enter lease end date (yyyy-MM-dd):");
-                                            leaseEndDate = validateAndParseDate(scanner.nextLine());  // Try to parse the date
-                                        } catch (ParseException e) {
-                                            System.out.println("Invalid date format. Please enter dates in yyyy-MM-dd format.");
-                                        }
-                                    }
-
+                                Date leaseStartDate = null, leaseEndDate = null;
+                                while (leaseStartDate == null) {
                                     try {
-                                    // Check if the lease overlaps with existing leases for the same property
-                                    for (Lease existingLease : leases) {
-                                        if (existingLease.getPropertyAddress().equals(propertyAddress)) {
-                                            Date existingStartDate = existingLease.getStartDate();
-                                            Date existingEndDate = existingLease.getEndDate();
+                                        System.out.println("Enter lease start date (yyyy-MM-dd):");
+                                        leaseStartDate = validateAndParseDate(scanner.nextLine());
+                                    } catch (ParseException e) {
+                                        System.out.println("Invalid date format. Please use yyyy-MM-dd.");
+                                    }
+                                }
 
-                                            // Check for overlap: new lease starts before existing lease ends and ends after it starts
-                                            if (!(leaseEndDate.before(existingStartDate) || leaseStartDate.after(existingEndDate))) {
-                                                throw new OverlappingLeaseException("Cannot lease property at " + propertyAddress
-                                                        + " for the same period. New lease must start after the existing lease ends.");
-                                            }
+                                while (leaseEndDate == null) {
+                                    try {
+                                        System.out.println("Enter lease end date (yyyy-MM-dd):");
+                                        leaseEndDate = validateAndParseDate(scanner.nextLine());
+                                    } catch (ParseException e) {
+                                        System.out.println("Invalid date format. Please use yyyy-MM-dd.");
+                                    }
+                                }
+
+                                try {
+                                    for (Lease existingLease : leases) {
+                                        if (existingLease.getPropertyAddress().equals(propertyAddress) &&
+                                                !(leaseEndDate.before(existingLease.getStartDate()) || leaseStartDate.after(existingLease.getEndDate()))) {
+                                            throw new OverlappingLeaseException("Lease period overlaps with an existing lease.");
                                         }
                                     }
 
-                                    // Add the new lease if no overlap
-                                    leases.add(new Lease(tenant.getName(), leaseStartDate, leaseEndDate, monthlyRent, propertyAddress));
-                                    saveToJson(persons, properties, leases);
+                                    Lease lease = new Lease(tenant.getName(), leaseStartDate, leaseEndDate, monthlyRent, propertyAddress);
+                                    addLeaseToDatabase(lease);  // Save lease to the database
                                     System.out.println("Lease added.");
                                 } catch (OverlappingLeaseException e) {
                                     System.out.println("Lease error: " + e.getMessage());
-                                } catch (IllegalArgumentException e) {
-                                    System.out.println("Invalid date provided. Please check the date format and ensure it is a valid date.");
                                 }
-                                    break;
+                                break;
                         }
                     }
                     break;
+
                 default:
                     System.out.println("Invalid command. Please specify 'describe', 'count', 'sort', 'group', 'countpets', 'smallestadr, or 'contract' as a command line argument.");
                     break;
@@ -466,156 +474,169 @@ public class Main {
         } else {
             System.out.println("Please specify 'describe', 'count', 'sort', 'group', or 'countpets' as a command line argument.");
         }
+        }catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            executorService.shutdown();
+        }
     }
 
-    private static List<Person> loadPersonsFromJson(String fileName) {
+    // Fetch all persons from database
+    private static List<Person> getAllPersons() {
         List<Person> persons = new ArrayList<>();
-        try {
-            String content = new String(Files.readAllBytes(Paths.get(fileName)));
-            JSONObject jsonObject = new JSONObject(content);
-            JSONArray personArray = jsonObject.getJSONArray("persons");
-            for (int i = 0; i < personArray.length(); i++) {
-                JSONObject personObject = personArray.getJSONObject(i);
-                persons.add(new Person(personObject.getString("name")));
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement("SELECT * FROM Person");
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                persons.add(new Person(rs.getString("name")));
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return persons;
     }
 
-    private static List<IProperty> loadPropertiesFromJson(String fileName) {
+    // Fetch all properties from database
+    private static List<IProperty> getAllProperties() {
         List<IProperty> properties = new ArrayList<>();
-        try {
-            String content = new String(Files.readAllBytes(Paths.get(fileName)));
-            JSONObject jsonObject = new JSONObject(content);
-            JSONArray propertyArray = jsonObject.getJSONArray("properties");
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(
+                     "SELECT p.*, o.name AS owner_name FROM Property p JOIN Person o ON p.owner_id = o.id")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Person owner = new Person(rs.getString("owner_name"));
+                String type = rs.getString("type");
+                String address = rs.getString("address");
+                int floor = rs.getInt("floor");
+                boolean isGround = rs.getBoolean("isGround");
+                List<Pet> pets = getPetsForProperty(rs.getInt("id"));
 
-            for (int i = 0; i < propertyArray.length(); i++) {
-                JSONObject propertyObject = propertyArray.getJSONObject(i);
-                String type = propertyObject.getString("type");
-                String address = propertyObject.getString("address");
-                Person owner = new Person(propertyObject.getString("owner"));
-
-                JSONArray petsArray = propertyObject.optJSONArray("pets");
-                Pet[] pets = new Pet[petsArray != null ? petsArray.length() : 0];
-                if (petsArray != null) {
-                    for (int j = 0; j < petsArray.length(); j++) {
-                        pets[j] = new Pet(petsArray.getJSONObject(j).getString("type"));
-                    }
-                }
-
-                if (type.equals("House")) {
-                    properties.add(new House(owner, pets, address, propertyObject.getBoolean("occupied")));
-                } else if (type.equals("Apartment")) {
-                    properties.add(new Apartment(owner, propertyObject.getInt("floor"), address, pets));
+                if ("House".equalsIgnoreCase(type)) {
+                    properties.add(new House(owner, pets.toArray(new Pet[0]), address, isGround));
+                } else {
+                    properties.add(new Apartment(owner, floor, address, pets.toArray(new Pet[0])));
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return properties;
     }
 
-    private static List<Lease> loadLeasesFromJson(String fileName) {
-        List<Lease> leases = new ArrayList<>();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
-        try {
-            String content = new String(Files.readAllBytes(Paths.get(fileName)));
-            JSONObject jsonObject = new JSONObject(content);
-            JSONArray leaseArray = jsonObject.getJSONArray("leases");
-
-            for (int i = 0; i < leaseArray.length(); i++) {
-                JSONObject leaseObject = leaseArray.getJSONObject(i);
-
-                // Extract fields with default values if missing
-                String tenant = leaseObject.optString("tenant", "Unknown Tenant");
-                Date startDate = dateFormat.parse(leaseObject.optString("startDate", "1900-01-01"));
-                Date endDate = dateFormat.parse(leaseObject.optString("endDate", "1900-01-01"));
-                double monthlyRent = leaseObject.optDouble("monthlyRent", 0.0);
-                String propertyAddress = leaseObject.optString("propertyAddress", "Unknown Address"); // Extract property address
-
-                // Pass all five arguments to the Lease constructor
-                leases.add(new Lease(tenant, startDate, endDate, monthlyRent, propertyAddress));
+    // Fetch pets for a specific property
+    private static List<Pet> getPetsForProperty(int propertyId) {
+        List<Pet> pets = new ArrayList<>();
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement("SELECT type FROM Pet WHERE id IN (SELECT pet_id FROM PropertyPet WHERE property_id = ?)")) {
+            stmt.setInt(1, propertyId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                pets.add(new Pet(rs.getString("type")));
             }
-        } catch (IOException | ParseException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return pets;
+    }
+
+    // Fetch all leases from database
+    private static List<Lease> getAllLeases() {
+        List<Lease> leases = new ArrayList<>();
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(
+                     "SELECT l.*, t.name AS tenant_name, p.address FROM Lease l JOIN Person t ON l.tenant_id = t.id JOIN Property p ON l.property_id = p.id")) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                leases.add(new Lease(rs.getString("tenant_name"), rs.getDate("startDate"), rs.getDate("endDate"), rs.getDouble("monthlyRent"), rs.getString("address")));
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return leases;
     }
 
-
-
-
-    // Method to save the updated data back to the JSON file
-    private static void saveToJson(List<Person> persons, List<IProperty> properties, List<Lease> leases) {
-        JSONObject jsonObject = new JSONObject();
-
-        // Convert persons to JSON
-        JSONArray personArray = new JSONArray();
-        for (Person person : persons) {
-            JSONObject personObject = new JSONObject();
-            personObject.put("name", person.getName());
-            personArray.put(personObject);
-        }
-        jsonObject.put("persons", personArray);
-
-        // Convert properties to JSON
-        JSONArray propertyArray = new JSONArray();
-        for (IProperty property : properties) {
-            JSONObject propertyObject = new JSONObject();
-            if (property instanceof House) {
-                House house = (House) property;
-                propertyObject.put("type", "House");
-                propertyObject.put("address", house.getAddress());
-                propertyObject.put("owner", house.getOwner().getName());
-                propertyObject.put("occupied", house.isGround());
-                JSONArray petArray = new JSONArray();
-                for (Pet pet : house.getPets()) {
-                    JSONObject petObject = new JSONObject();
-                    petObject.put("type", pet.getPetType());
-                    petArray.put(petObject);
-                }
-                propertyObject.put("pets", petArray);
-            } else if (property instanceof Apartment) {
-                Apartment apartment = (Apartment) property;
-                propertyObject.put("type", "Apartment");
-                propertyObject.put("address", apartment.getAddress());
-                propertyObject.put("owner", apartment.getOwner().getName());
-                propertyObject.put("floor", apartment.getFloor());
-                JSONArray petArray = new JSONArray();
-                for (Pet pet : apartment.getPets()) {
-                    JSONObject petObject = new JSONObject();
-                    petObject.put("type", pet.getPetType());
-                    petArray.put(petObject);
-                }
-                propertyObject.put("pets", petArray);
-            }
-            propertyArray.put(propertyObject);
-        }
-        jsonObject.put("properties", propertyArray);
-
-        // Convert leases to JSON
-        JSONArray leaseArray = new JSONArray();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        for (Lease lease : leases) {
-            JSONObject leaseObject = new JSONObject();
-            leaseObject.put("tenant", lease.getTenantName());
-            leaseObject.put("startDate", dateFormat.format(lease.getStartDate()));
-            leaseObject.put("endDate", dateFormat.format(lease.getEndDate()));
-            leaseObject.put("monthlyRent", lease.getMonthlyRent());
-            leaseArray.put(leaseObject);
-        }
-        jsonObject.put("leases", leaseArray);
-
-        // Write to file
-        try (FileWriter file = new FileWriter(DATA_FILE)) {
-            file.write(jsonObject.toString(4)); // Indent for readability
-            System.out.println("Data saved to " + DATA_FILE);
-        } catch (IOException e) {
+    public static void addPersonToDatabase(Person person) {
+        String query = "INSERT INTO Person (name) VALUES (?)";
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, person.getName());
+            stmt.executeUpdate();
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
+    public static void addPetToDatabase(Pet pet, String propertyAddress) {
+        String petQuery = "INSERT IGNORE INTO Pet (type) VALUES (?)";
+        String linkQuery = "INSERT INTO PropertyPet (property_id, pet_id) VALUES ((SELECT id FROM Property WHERE address = ?), (SELECT id FROM Pet WHERE type = ?))";
+
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            try (PreparedStatement stmt = connection.prepareStatement(petQuery)) {
+                stmt.setString(1, pet.getPetType());
+                stmt.executeUpdate();
+            }
+            try (PreparedStatement stmt = connection.prepareStatement(linkQuery)) {
+                stmt.setString(1, propertyAddress);
+                stmt.setString(2, pet.getPetType());
+                stmt.executeUpdate();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void addPropertyToDatabase(IProperty property) {
+        String query = "INSERT INTO Property (address, owner_id, floor, isGround, type) VALUES (?, (SELECT id FROM Person WHERE name = ?), ?, ?, ?)";
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, property.getAddress());
+            stmt.setString(2, property.getOwner().getName());
+
+            Pet[] pets = new Pet[0];  // Initialize empty array for pets
+
+            if (property instanceof House) {
+                House house = (House) property;
+                pets = house.getPets();  // Use the getter method
+                stmt.setNull(3, java.sql.Types.INTEGER);
+                stmt.setBoolean(4, true);
+                stmt.setString(5, "House");
+            } else if (property instanceof Apartment) {
+                Apartment apartment = (Apartment) property;
+                pets = apartment.getPets();  // Use the getter method
+                stmt.setInt(3, apartment.getFloor());
+                stmt.setBoolean(4, false);
+                stmt.setString(5, "Apartment");
+            }
+
+            stmt.executeUpdate();
+
+            for (Pet pet : pets) {
+                addPetToDatabase(pet, property.getAddress());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+    public static void addLeaseToDatabase(Lease lease) {
+        String query = "INSERT INTO Lease (tenant_id, property_id, startDate, endDate, monthlyRent) VALUES ((SELECT id FROM Person WHERE name = ?), (SELECT id FROM Property WHERE address = ?), ?, ?, ?)";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, lease.getTenantName());
+            stmt.setString(2, lease.getPropertyAddress());
+            stmt.setDate(3, new java.sql.Date(lease.getStartDate().getTime()));
+            stmt.setDate(4, new java.sql.Date(lease.getEndDate().getTime()));
+            stmt.setDouble(5, lease.getMonthlyRent());
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
 
 }
