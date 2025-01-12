@@ -1,8 +1,11 @@
 //class B
 package org.example;
-import java.util.Objects;
 
-public class House implements IProperty, Comparable<House> {
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
+public class House implements IProperty, Comparable<House>, Serializable {
     private Person owner;          // The owner of the house
     private Pet[] pets;            // An array of pets associated with the house
     private String address;        // Address of the house
@@ -18,16 +21,40 @@ public class House implements IProperty, Comparable<House> {
 
     @Override
     public String getDescription() {
-        return "This house is owned by " + owner.getName() + " and has " + getPetNames() + ".";
+        StringBuilder petDescription = new StringBuilder();
+        Map<String, Integer> petCount = new HashMap<>();
+
+        // Count pets by type
+        for (Pet pet : pets) {
+            petCount.put(pet.getPetType(), petCount.getOrDefault(pet.getPetType(), 0) + 1);
+        }
+
+        // Format pet description
+        for (Map.Entry<String, Integer> entry : petCount.entrySet()) {
+            petDescription.append(entry.getValue()).append(" ").append(entry.getKey());
+            if (entry.getValue() > 1) petDescription.append("s"); // Pluralize if more than one
+            petDescription.append(", ");
+        }
+
+        // Remove the trailing comma and space
+        if (petDescription.length() > 0) {
+            petDescription.setLength(petDescription.length() - 2);
+        } else {
+            petDescription.append("no pets");
+        }
+
+        return "The house on " + address + " is owned by " + owner.getName() + ". "
+                + (isGround ? "It is on ground level" : "It is not on ground level") + ". "
+                + owner.getName() + " has " + petDescription.toString() + ".";
     }
 
-    // Helper method to get pet names as a string
+    // Helper method to get pet names as a string (not used in the main description method)
     private String getPetNames() {
         StringBuilder petNames = new StringBuilder();
         for (int i = 0; i < pets.length; i++) {
             petNames.append(pets[i].getPetType());
             if (i < pets.length - 1) {
-                petNames.append(", "); // Add comma for all but last pet
+                petNames.append(", "); // Add comma for all but the last pet
             }
         }
         return petNames.toString();
@@ -42,20 +69,20 @@ public class House implements IProperty, Comparable<House> {
         return address;
     }
 
-    // Implementation of isGround method
+    // Indicates if the house is on the ground level
     @Override
     public boolean isGround() {
-        return isGround; // true if it's a ground-level house
+        return isGround;
     }
 
-    // Floor method is not applicable for houses, so return 0 or -1
+    // Return 0 for ground level, or -1 if not applicable
     @Override
     public int getFloor() {
-        return isGround ? 0 : -1; // Ground-level house returns 0, others return -1
+        return isGround ? 0 : -1;
     }
 
     public Pet[] getPets() {
-        return pets;
+        return this.pets;  // Return the pets array
     }
 
     // Override toString for easy printing of house details
@@ -69,9 +96,15 @@ public class House implements IProperty, Comparable<House> {
                 '}';
     }
 
+    // Implementing compareTo based on the starting number of the address
     @Override
     public int compareTo(House other) {
-        return this.address.compareTo(other.address);
+        // Extract the starting number from each address (before the first space)
+        int num1 = Integer.parseInt(this.address.split(" ")[0]);
+        int num2 = Integer.parseInt(other.address.split(" ")[0]);
+
+        // Compare based on the extracted numbers
+        return Integer.compare(num1, num2);
     }
 
 }

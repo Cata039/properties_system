@@ -1,7 +1,8 @@
 // Class C
 package org.example;
+import java.io.Serializable;
 
-public class Pet implements IAnimal {
+public class Pet implements IAnimal,Serializable {
     private String petType;
 
     public Pet(String petType) {

@@ -1,13 +1,15 @@
 // Class E
 package org.example;
-import java.io.Serializable;
-import java.util.Objects;
 
-public class Apartment implements IProperty, Comparable<Apartment> {
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
+public class Apartment implements IProperty, Comparable<Apartment>, Serializable {
     private Person owner;      // The owner of the apartment
     private Pet[] pets;        // An array of pets associated with the apartment
     private String address;    // Address of the apartment
-    private int floor;   // Floor number of the apartment
+    private int floor;         // Floor number of the apartment
 
     // Constructor to initialize the owner, floor number, and address
     public Apartment(Person owner, int floorNumber, String address, Pet[] pets) {
@@ -17,33 +19,43 @@ public class Apartment implements IProperty, Comparable<Apartment> {
         this.pets = pets != null ? pets : new Pet[0]; // Initialize with provided pets or empty array
     }
 
-
     // Method to get the array of pets
     public Pet[] getPets() {
-        return pets;
+        return this.pets;  // Assuming `pets` is a field in the `Apartment` class
     }
+
 
     // Method to count the number of pets in the apartment
     public int countPets() {
         return pets.length;
     }
 
-    // Implementation of getDescription method
     @Override
     public String getDescription() {
-        return "This apartment is owned by " + owner.getName() + " and has " + getPetNames() + "."; // Use getPetNames() here
-    }
+        StringBuilder petDescription = new StringBuilder();
+        Map<String, Integer> petCount = new HashMap<>();
 
-    // Helper method to get pet names as a string
-    private String getPetNames() {
-        StringBuilder petNames = new StringBuilder();
-        for (int i = 0; i < pets.length; i++) {
-            petNames.append(pets[i].getPetType());
-            if (i < pets.length - 1) {
-                petNames.append(", "); // Add comma for all but last pet
-            }
+        // Count pets by type
+        for (Pet pet : pets) {
+            petCount.put(pet.getPetType(), petCount.getOrDefault(pet.getPetType(), 0) + 1);
         }
-        return petNames.toString();
+
+        // Format pet description
+        for (Map.Entry<String, Integer> entry : petCount.entrySet()) {
+            petDescription.append(entry.getValue()).append(" ").append(entry.getKey());
+            if (entry.getValue() > 1) petDescription.append("s"); // Pluralize if more than one
+            petDescription.append(", ");
+        }
+
+        // Remove the trailing comma and space
+        if (petDescription.length() > 0) {
+            petDescription.setLength(petDescription.length() - 2);
+        } else {
+            petDescription.append("no pets");
+        }
+
+        return "The apartment on " + address + ", floor " + floor + " is owned by "
+                + owner.getName() + ". " + owner.getName() + " has " + petDescription.toString() + ".";
     }
 
     public Person getOwner() {
@@ -68,9 +80,10 @@ public class Apartment implements IProperty, Comparable<Apartment> {
         return floor; // Return the floor number
     }
 
-    // Implementation of compareTo method to compare based on address
+    // Implementation of compareTo method to compare based on floor number
     @Override
     public int compareTo(Apartment other) {
         return Integer.compare(this.floor, other.floor);
     }
+
 }
